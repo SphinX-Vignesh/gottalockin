@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KINETIC | Workout Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ── RESET ── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow-x:hidden;}
+::-webkit-scrollbar{display:none;}
+
+/* ── TOKENS ── */
+:root{
+  --bg:#131313;
+  --surface:#201f1f;
+  --card:#2a2a2a;
+  --card-dim:#1c1b1b;
+  --primary:#ede1ff;
+  --primary-dark:#342c49;
+  --secondary:#f2b6cb;
+  --secondary-dim:#f2b6cb;
+  --outline:#49454d;
+  --on-surface:#e5e2e1;
+  --on-surface-muted:#cac4cd;
+  --on-surface-faint:#6b6770;
+}
+
+/* ── BASE ── */
+body{
+  background:var(--bg);
+  color:var(--on-surface);
+  font-family:'Inter',sans-serif;
+  min-height:100dvh;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeSlideLeft{from{opacity:0;transform:translateX(-16px);}to{opacity:1;transform:translateX(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-24px);}to{opacity:1;transform:translateY(0);}}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+@keyframes popIn{0%{transform:scale(0.4);opacity:0;}60%{transform:scale(1.2);}100%{transform:scale(1);opacity:1;}}
+@keyframes popOut{0%{transform:scale(1);opacity:1;}100%{transform:scale(0.4);opacity:0;}}
+@keyframes pulse{0%,100%{opacity:0.06;}50%{opacity:0.14;}}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+@keyframes progressFill{from{width:0}to{width:var(--target-w)}}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes cardTap{0%{transform:scale(1);}50%{transform:scale(0.97);}100%{transform:scale(1);}}
+@keyframes checkIn{0%{transform:scale(0.3);opacity:0;}60%{transform:scale(1.25);}100%{transform:scale(1);opacity:1;}}
+@keyframes strikeGrow{from{width:0}to{width:100%}}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(237,225,255,0);} 50%{box-shadow:0 0 24px 4px rgba(237,225,255,0.12);}}
+
+.anim-slide-down{animation:slideDown 0.5s cubic-bezier(0.22,1,0.36,1) forwards;}
+.anim-slide-up{animation:slideUp 0.5s cubic-bezier(0.22,1,0.36,1) 0.15s both;}
+.anim-hero{animation:fadeSlideLeft 0.38s cubic-bezier(0.22,1,0.36,1) forwards;}
+.anim-bob{animation:bob 3s ease-in-out infinite;}
+
+/* ── GRADIENT ── */
+.kg{background:linear-gradient(135deg,#ede1ff 0%,#d1c4e9 100%);}
+.kg-text{background:linear-gradient(135deg,#ede1ff,#d1c4e9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+
+/* ── NOISE ── */
+.noise{
+  position:fixed;inset:0;pointer-events:none;z-index:200;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:0.04;
+}
+
+/* ── GLOW ORBS ── */
+.glow-orb{position:fixed;border-radius:50%;pointer-events:none;filter:blur(80px);}
+.glow-1{width:280px;height:280px;background:rgba(237,225,255,0.08);top:20%;right:-80px;}
+.glow-2{width:280px;height:280px;background:rgba(242,182,203,0.07);bottom:20%;left:-80px;}
+
+/* ── HEADER ── */
+header.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:72px;
+  background:linear-gradient(to bottom,rgba(19,19,19,0.92),transparent);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+}
+.logo{
+  font-family:'Manrope',sans-serif;
+  font-size:22px;font-weight:800;letter-spacing:0.06em;
+  color:var(--primary);text-transform:uppercase;
+}
+.icon-btn{
+  background:none;border:none;cursor:pointer;color:var(--primary);
+  font-size:24px;padding:8px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity 0.2s;
+}
+.icon-btn:active{opacity:0.6;}
+.icon-btn.spinning svg{animation:spin 0.4s ease;}
+
+/* ── MAIN ── */
+main{
+  padding-top:88px;padding-bottom:120px;
+  max-width:480px;margin:0 auto;padding-left:20px;padding-right:20px;
+}
+
+/* ── DAY TABS ── */
+.day-tabs{
+  display:flex;gap:10px;overflow-x:auto;padding:8px 0 12px;
+  scrollbar-width:none;margin-bottom:24px;
+}
+.day-tab{
+  flex-shrink:0;width:52px;height:52px;border-radius:50%;border:none;
+  font-family:'Manrope',sans-serif;font-size:12px;font-weight:700;
+  cursor:pointer;transition:transform 0.15s,background 0.2s;
+  display:flex;align-items:center;justify-content:center;
+}
+.day-tab:active{transform:scale(0.87);}
+.day-tab.inactive{background:var(--card);color:var(--on-surface-muted);}
+.day-tab.active{background:linear-gradient(135deg,#ede1ff,#d1c4e9);color:#342c49;box-shadow:0 4px 20px rgba(237,225,255,0.25);}
+
+/* ── HERO ── */
+.hero{margin-bottom:20px;}
+.hero-label{
+  font-size:11px;font-weight:700;letter-spacing:0.2em;
+  text-transform:uppercase;color:var(--secondary-dim);margin-bottom:8px;
+  display:block;
+}
+.hero-title{
+  font-family:'Manrope',sans-serif;
+  font-size:52px;font-weight:800;line-height:0.95;
+  color:var(--on-surface);letter-spacing:-0.03em;
+  display:block;
+}
+.hero-sub{
+  font-family:'Manrope',sans-serif;
+  font-size:32px;font-weight:200;color:var(--outline);
+  letter-spacing:-0.01em;margin-top:6px;display:block;
+}
+
+/* ── PROGRESS ── */
+.progress-wrap{margin-bottom:20px;}
+.progress-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.progress-label{font-size:11px;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:0.1em;}
+.progress-pct{font-size:11px;font-weight:700;color:var(--primary);}
+.progress-track{height:2px;background:var(--card);border-radius:2px;overflow:hidden;}
+.progress-fill{
+  height:100%;border-radius:2px;
+  background:linear-gradient(90deg,#ede1ff,#d1c4e9);
+  transition:width 0.55s cubic-bezier(0.22,1,0.36,1);
+}
+
+/* ── EXERCISE LIST ── */
+.exercise-list{display:flex;flex-direction:column;gap:10px;}
+
+/* ── EXERCISE CARD ── */
+.ex-card{
+  position:relative;border-radius:28px;
+  background:var(--card);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:22px 22px 22px 24px;
+  cursor:pointer;
+  border:1px solid transparent;
+  transition:background 0.25s,opacity 0.3s,box-shadow 0.3s;
+  opacity:0;
+}
+.ex-card.visible{
+  animation:fadeUp 0.35s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+.ex-card:active{animation:cardTap 0.2s ease;}
+.ex-card.done{
+  background:rgba(28,27,27,0.5);
+  opacity:0.55;
+}
+.ex-card:not(.done):hover{background:#313131;}
+
+/* Halo glow behind incomplete cards */
+.ex-card:not(.done)::before{
+  content:'';
+  position:absolute;inset:-1px;border-radius:29px;
+  background:linear-gradient(135deg,#ede1ff,#f2b6cb);
+  opacity:0;z-index:-1;
+  animation:pulse 3.5s ease-in-out infinite;
+}
+
+.ex-info{flex:1;min-width:0;padding-right:16px;}
+.ex-num{
+  font-size:10px;font-weight:700;letter-spacing:0.15em;
+  text-transform:uppercase;color:var(--secondary-dim);
+  margin-bottom:6px;display:block;
+}
+.ex-card.done .ex-num{color:var(--on-surface-faint);}
+.ex-name{
+  font-family:'Manrope',sans-serif;
+  font-size:20px;font-weight:700;color:var(--on-surface);
+  display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  position:relative;
+}
+.ex-card.done .ex-name{color:var(--on-surface-muted);}
+/* Strike-through line */
+.ex-name::after{
+  content:'';
+  position:absolute;left:0;top:50%;height:1.5px;
+  background:rgba(237,225,255,0.4);
+  width:0;transform:translateY(-50%);
+  transition:width 0.35s cubic-bezier(0.22,1,0.36,1);
+}
+.ex-card.done .ex-name::after{width:100%;}
+.ex-sets{
+  font-size:13px;color:var(--on-surface-muted);
+  margin-top:5px;display:block;
+}
+
+/* ── CHECK CIRCLE ── */
+.check-circle{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:background 0.25s,border-color 0.25s;
+  border:1.5px solid rgba(73,69,77,0.5);
+  background:transparent;
+}
+.check-circle .icon-empty{
+  width:14px;height:14px;border-radius:50%;
+  border:1.5px solid rgba(73,69,77,0.6);
+}
+.check-circle .icon-check{
+  display:none;
+}
+.ex-card.done .check-circle{
+  background:linear-gradient(135deg,#ede1ff,#d1c4e9);
+  border-color:transparent;
+  box-shadow:0 0 16px rgba(237,225,255,0.3);
+  animation:checkIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+.ex-card.done .icon-empty{display:none;}
+.ex-card.done .icon-check{display:block;}
+.icon-check svg{width:16px;height:16px;}
+
+/* ── FINISHER ── */
+.finisher-wrap{
+  margin-top:28px;padding-top:28px;
+  border-top:1px solid rgba(73,69,77,0.15);
+}
+.finisher-card{
+  background:linear-gradient(135deg,rgba(101,57,75,0.35),rgba(42,42,42,0.9));
+  border:1px solid rgba(242,182,203,0.12);
+  border-radius:32px;padding:28px;
+  position:relative;overflow:hidden;
+}
+.finisher-card::before{
+  content:'';
+  position:absolute;right:-16px;top:-16px;
+  width:120px;height:120px;
+  background:rgba(242,182,203,0.1);
+  border-radius:50%;filter:blur(32px);pointer-events:none;
+}
+.finisher-label{
+  font-size:10px;font-weight:700;letter-spacing:0.3em;
+  text-transform:uppercase;color:var(--secondary);
+  display:block;margin-bottom:10px;
+}
+.finisher-name{
+  font-family:'Manrope',sans-serif;
+  font-size:28px;font-weight:800;color:var(--on-surface);
+  margin-bottom:10px;
+}
+.finisher-meta{display:flex;align-items:center;gap:12px;color:var(--on-surface-muted);}
+.finisher-item{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;}
+.finisher-dot{width:4px;height:4px;border-radius:50%;background:rgba(73,69,77,0.5);}
+
+/* ── REST SCREEN ── */
+.rest-screen{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:60px 20px;text-align:center;gap:16px;
+}
+.rest-emoji{font-size:64px;line-height:1;}
+.rest-title{
+  font-family:'Manrope',sans-serif;
+  font-size:36px;font-weight:800;color:var(--on-surface);letter-spacing:-0.02em;
+}
+.rest-note{font-size:14px;color:var(--on-surface-muted);line-height:1.7;max-width:260px;}
+
+/* ── BOTTOM NAV ── */
+nav.bottom{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  display:flex;justify-content:space-around;align-items:center;
+  padding:12px 16px 28px;
+  background:linear-gradient(to top,rgba(19,19,19,0.97),transparent);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top-left-radius:28px;border-top-right-radius:28px;
+}
+.nav-item{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:none;cursor:pointer;
+  font-family:'Inter',sans-serif;font-size:10px;font-weight:600;
+  letter-spacing:0.05em;text-transform:uppercase;
+  color:rgba(229,226,225,0.3);transition:color 0.2s,transform 0.15s;
+  padding:6px 12px;
+}
+.nav-item:active{transform:scale(0.88);}
+.nav-item.active{color:var(--primary);}
+.nav-item svg{width:22px;height:22px;}
+
+/* SVG icon helper */
+.mat-icon{font-size:22px;line-height:1;}
+
+/* Stagger helper */
+.ex-card:nth-child(1){animation-delay:0.00s}
+.ex-card:nth-child(2){animation-delay:0.06s}
+.ex-card:nth-child(3){animation-delay:0.12s}
+.ex-card:nth-child(4){animation-delay:0.18s}
+.ex-card:nth-child(5){animation-delay:0.24s}
+.ex-card:nth-child(6){animation-delay:0.30s}
+
+/* Finisher stagger */
+.finisher-wrap{animation:fadeUp 0.4s cubic-bezier(0.22,1,0.36,1) 0.36s both;}
+</style>
+</head>
+<body>
+
+<!-- Noise + Glows -->
+<div class="noise"></div>
+<div class="glow-orb glow-1"></div>
+<div class="glow-orb glow-2"></div>
+
+<!-- Header -->
+<header class="topbar anim-slide-down">
+  <button class="icon-btn" onclick="openMenu()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/>
+    </svg>
+  </button>
+  <span class="logo">KINETIC</span>
+  <button class="icon-btn" id="refreshBtn" onclick="resetAll()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </svg>
+  </button>
+</header>
+
+<!-- Main -->
+<main>
+  <!-- Day tabs -->
+  <div class="day-tabs" id="dayTabs"></div>
+
+  <!-- Hero -->
+  <div class="hero anim-hero" id="hero"></div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap" style="display:none">
+    <div class="progress-meta">
+      <span class="progress-label" id="progressLabel">0 / 0 completed</span>
+      <span class="progress-pct" id="progressPct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content"></div>
+</main>
+
+<!-- Bottom Nav -->
+<nav class="bottom anim-slide-up">
+  <button class="nav-item active">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    Workout
+  </button>
+  <button class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Explore
+  </button>
+  <button class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Stats
+  </button>
+  <button class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Plan
+  </button>
+</nav>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const DAYS = [
+  {
+    label:'D1', num:'01', name:'Pull', sub:'Back + Rear Delts',
+    exercises:[
+      {id:1,n:'01',name:'Lat Pulldown',         sets:'4 Sets \u2022 8\u201312 Reps'},
+      {id:2,n:'02',name:'Seated Cable Row',      sets:'4 Sets \u2022 10 Reps'},
+      {id:3,n:'03',name:'Straight Arm Pulldown', sets:'3 Sets \u2022 15 Reps'},
+      {id:4,n:'04',name:'Face Pulls',            sets:'3 Sets \u2022 15\u201320 Reps'},
+      {id:5,n:'05',name:'Rear Delt Fly',         sets:'3 Sets \u2022 12 Reps'},
+      {id:6,n:'06',name:'Lower Back Extension',  sets:'3 Sets \u2022 Controlled'},
+    ],
+    finisher:{name:'Elliptical', dur:'5\u20138 Mins', vibe:'Easy Pace'},
+  },
+  {
+    label:'D2', num:'02', name:'Push', sub:'Shoulders + Chest',
+    exercises:[
+      {id:1,n:'01',name:'Shoulder Press Machine',sets:'4 Sets \u2022 8\u201312 Reps'},
+      {id:2,n:'02',name:'Cable Lateral Raises',  sets:'4 Sets \u2022 12\u201315 Reps'},
+      {id:3,n:'03',name:'Front Raises',          sets:'3 Sets \u2022 12 Reps'},
+      {id:4,n:'04',name:'Chest Press Machine',   sets:'3 Sets \u2022 10 Reps'},
+      {id:5,n:'05',name:'Chest Fly',             sets:'3 Sets \u2022 12 Reps'},
+      {id:6,n:'06',name:'Tricep Pushdown',       sets:'2\u20133 Sets \u2022 Light'},
+    ],
+    finisher:{name:'Treadmill Walk', dur:'5\u201310 Mins', vibe:'Speed 5\u20136'},
+  },
+  {
+    label:'D3', num:'03', name:'Legs', sub:'Legs + Core',
+    exercises:[
+      {id:1,n:'01',name:'Leg Press',      sets:'4 Sets \u2022 10\u201312 Reps'},
+      {id:2,n:'02',name:'Leg Extension',  sets:'3 Sets \u2022 12 Reps'},
+      {id:3,n:'03',name:'Hamstring Curl', sets:'3 Sets \u2022 12 Reps'},
+      {id:4,n:'04',name:'Calf Raises',    sets:'4 Sets \u2022 15 Reps'},
+      {id:5,n:'05',name:'Ab Machine',     sets:'3 Sets \u2022 15 Reps'},
+      {id:6,n:'06',name:'Cable Crunch',   sets:'3 Sets \u2022 12 Reps'},
+    ],
+    finisher:{name:'Cycle', dur:'8\u201310 Mins', vibe:'Moderate'},
+  },
+  {
+    label:'D4', num:'04', name:'Rest', sub:'Or Light Cardio',
+    rest:true, note:'Take it easy. Optional light cardio or a 20\u201330 min walk.',
+    exercises:[], finisher:null,
+  },
+  {
+    label:'D5', num:'05', name:'Pull', sub:'Back + Rear Delts',
+    exercises:[
+      {id:1,n:'01',name:'Lat Pulldown',         sets:'4 Sets \u2022 10\u201312 Reps'},
+      {id:2,n:'02',name:'Seated Cable Row',      sets:'4 Sets \u2022 10\u201312 Reps'},
+      {id:3,n:'03',name:'Straight Arm Pulldown', sets:'3 Sets \u2022 12\u201315 Reps'},
+      {id:4,n:'04',name:'Face Pulls',            sets:'3 Sets \u2022 12\u201315 Reps'},
+      {id:5,n:'05',name:'Rear Delt Fly',         sets:'3 Sets \u2022 12\u201315 Reps'},
+      {id:6,n:'06',name:'Lower Back Extension',  sets:'3 Sets \u2022 12 Reps'},
+    ],
+    finisher:{name:'Elliptical', dur:'5\u20138 Mins', vibe:'Easy Pace'},
+  },
+  {
+    label:'D6', num:'06', name:'Push', sub:'Shoulders + Chest',
+    exercises:[
+      {id:1,n:'01',name:'Shoulder Press Machine',sets:'4 Sets \u2022 8\u201312 Reps'},
+      {id:2,n:'02',name:'Cable Lateral Raises',  sets:'4 Sets \u2022 12\u201315 Reps'},
+      {id:3,n:'03',name:'Front Raises',          sets:'3 Sets \u2022 12 Reps'},
+      {id:4,n:'04',name:'Chest Press Machine',   sets:'3 Sets \u2022 10 Reps'},
+      {id:5,n:'05',name:'Chest Fly',             sets:'3 Sets \u2022 12 Reps'},
+      {id:6,n:'06',name:'Tricep Pushdown',       sets:'2\u20133 Sets \u2022 Light'},
+    ],
+    finisher:{name:'Treadmill Walk', dur:'5\u201310 Mins', vibe:'Speed 5\u20136'},
+  },
+  {
+    label:'D7', num:'07', name:'Rest', sub:'Recovery Day',
+    rest:true, note:'Full rest. Sleep well, eat well. You earned it.',
+    exercises:[], finisher:null,
+  },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let currentDay = 0;
+let completed = {};
+try { completed = JSON.parse(localStorage.getItem('kinetic_v3') || '{}'); } catch(e){}
+
+function save() {
+  try { localStorage.setItem('kinetic_v3', JSON.stringify(completed)); } catch(e){}
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderTabs() {
+  const el = document.getElementById('dayTabs');
+  el.innerHTML = '';
+  DAYS.forEach((d, i) => {
+    const b = document.createElement('button');
+    b.className = 'day-tab ' + (i === currentDay ? 'active' : 'inactive');
+    b.textContent = d.label;
+    b.onclick = () => switchDay(i);
+    el.appendChild(b);
+  });
+}
+
+function renderHero() {
+  const d = DAYS[currentDay];
+  const el = document.getElementById('hero');
+  el.innerHTML = `
+    <span class="hero-label">Day ${d.num} Programme</span>
+    <span class="hero-title">${d.name}</span>
+    <span class="hero-sub">${d.sub}</span>
+  `;
+  // restart animation
+  el.classList.remove('anim-hero');
+  void el.offsetWidth;
+  el.classList.add('anim-hero');
+}
+
+function renderProgress() {
+  const d = DAYS[currentDay];
+  const pw = document.getElementById('progressWrap');
+  if (d.rest || d.exercises.length === 0) { pw.style.display = 'none'; return; }
+  pw.style.display = 'block';
+  const comp = completed[currentDay] || [];
+  const done = comp.length;
+  const total = d.exercises.length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progressLabel').textContent = `${done} / ${total} completed`;
+  document.getElementById('progressPct').textContent = `${pct}%`;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function renderContent() {
+  const d = DAYS[currentDay];
+  const el = document.getElementById('content');
+
+  if (d.rest) {
+    el.innerHTML = `
+      <div class="rest-screen">
+        <div class="rest-emoji anim-bob">&#128716;</div>
+        <div class="rest-title">${d.name} Day</div>
+        <div class="rest-note">${d.note}</div>
+      </div>`;
+    return;
+  }
+
+  const comp = completed[currentDay] || [];
+  let html = '<div class="exercise-list">';
+
+  d.exercises.forEach(ex => {
+    const done = comp.includes(ex.id);
+    html += `
+      <div class="ex-card ${done ? 'done' : ''} visible" data-id="${ex.id}" onclick="toggle(${ex.id})">
+        <div class="ex-info">
+          <span class="ex-num">Exercise ${ex.n}</span>
+          <span class="ex-name">${ex.name}</span>
+          <span class="ex-sets">${ex.sets}</span>
+        </div>
+        <div class="check-circle">
+          <div class="icon-empty"></div>
+          <div class="icon-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#342c49" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  html += '</div>';
+
+  if (d.finisher) {
+    html += `
+      <div class="finisher-wrap">
+        <div class="finisher-card">
+          <span class="finisher-label">Daily Finisher</span>
+          <div class="finisher-name">${d.finisher.name}</div>
+          <div class="finisher-meta">
+            <div class="finisher-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              ${d.finisher.dur}
+            </div>
+            <div class="finisher-dot"></div>
+            <div class="finisher-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              ${d.finisher.vibe}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function render() {
+  renderTabs();
+  renderHero();
+  renderProgress();
+  renderContent();
+}
+
+// ── INTERACTIONS ──────────────────────────────────────────────────────────────
+function toggle(exId) {
+  const key = currentDay;
+  if (!completed[key]) completed[key] = [];
+  const arr = completed[key];
+  const idx = arr.indexOf(exId);
+
+  if (idx === -1) {
+    arr.push(exId);
+    // animate the card
+    const card = document.querySelector(`.ex-card[data-id="${exId}"]`);
+    if (card) {
+      card.classList.add('done');
+      // scroll to next incomplete
+      setTimeout(() => {
+        const allCards = document.querySelectorAll('.ex-card');
+        for (const c of allCards) {
+          if (!c.classList.contains('done')) {
+            c.scrollIntoView({ behavior:'smooth', block:'center' });
+            break;
+          }
+        }
+      }, 300);
+    }
+  } else {
+    arr.splice(idx, 1);
+    const card = document.querySelector(`.ex-card[data-id="${exId}"]`);
+    if (card) card.classList.remove('done');
+  }
+
+  save();
+  renderProgress();
+}
+
+function switchDay(i) {
+  currentDay = i;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  setTimeout(() => btn.classList.remove('spinning'), 450);
+  completed = {};
+  save();
+  currentDay = 0;
+  render();
+}
+
+function openMenu() { /* placeholder */ }
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
